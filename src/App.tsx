@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   ArrowUpRight,
+  Award,
   GitPullRequest,
   BarChart3,
   BriefcaseBusiness,
@@ -42,12 +43,14 @@ import {
   type StatusKey,
   type WorkItem,
 } from './data'
+import { workJourneys, type WorkJourney } from './journeys'
 
-type View = 'overview' | 'work' | 'stories' | 'plan'
+type View = 'overview' | 'results' | 'work' | 'stories' | 'plan'
 type PlanTab = 'sprint' | 'fit' | 'kpi'
 
 const navItems: Array<{ id: View; label: string; eyebrow: string; icon: typeof LayoutDashboard }> = [
   { id: 'overview', label: 'Overview', eyebrow: 'Impact snapshot', icon: LayoutDashboard },
+  { id: 'results', label: 'Completed results', eyebrow: 'Outcomes surfaced', icon: Award },
   { id: 'work', label: 'Work ledger', eyebrow: 'Issues & PRs', icon: BriefcaseBusiness },
   { id: 'stories', label: 'Story bank', eyebrow: 'Interview evidence', icon: MessageSquareQuote },
   { id: 'plan', label: 'Interview plan', eyebrow: '10-day system', icon: CalendarDays },
@@ -167,7 +170,7 @@ function App() {
             <button className="search-shortcut" onClick={() => { setView('work'); window.setTimeout(() => searchRef.current?.focus(), 0) }}>
               <Search size={15} /><span>Search work</span><kbd>⌘ K</kbd>
             </button>
-            <div className="live-chip"><span /> Verified Sep 08, 2026</div>
+            <div className="live-chip"><span /> Expanded Sep 09, 2026</div>
           </div>
         </header>
 
@@ -180,6 +183,7 @@ function App() {
             onSelect={setSelectedWork}
           />
         )}
+        {view === 'results' && <ResultsBoard onSelect={setSelectedWork} />}
         {view === 'work' && (
           <WorkLedger
             query={query}
@@ -229,8 +233,8 @@ function Overview({ shippedCount, completedCount, inProgressCount, onNavigate, o
           <h1>Quality work,<br /><em>made legible.</em></h1>
           <p>A verified record of engineering, QA judgment, production support, and the evidence behind every claim.</p>
           <div className="hero-actions">
-            <button className="button button--bright" onClick={() => onNavigate('work')}>Explore all work <ArrowUpRight size={17} /></button>
-            <button className="button button--ghost" onClick={() => onNavigate('stories')}>Open story bank</button>
+            <button className="button button--bright" onClick={() => onNavigate('results')}>查看完成成果 <ArrowUpRight size={17} /></button>
+            <button className="button button--ghost" onClick={() => onNavigate('work')}>查看全部问题</button>
           </div>
         </div>
         <div className="hero-visual" aria-label={`${delivered} of 14 assigned workstreams have complete delivery`}>
@@ -282,7 +286,7 @@ function Overview({ shippedCount, completedCount, inProgressCount, onNavigate, o
       </section>
 
       <section className="section-block">
-        <div className="section-heading"><div><span className="section-kicker">Selected evidence</span><h2>Four stories that carry the portfolio</h2></div><button className="button button--outline" onClick={() => onNavigate('work')}>View all 16 records</button></div>
+        <div className="section-heading"><div><span className="section-kicker">Selected evidence</span><h2>Four stories that carry the portfolio</h2></div><button className="button button--outline" onClick={() => onNavigate('results')}>Surface completed results</button></div>
         <div className="featured-grid">
           {featured.map((item, index) => <FeaturedCard item={item} rank={index + 1} key={item.id} onClick={() => onSelect(item)} />)}
         </div>
@@ -313,6 +317,75 @@ function FeaturedCard({ item, rank, onClick }: { item: WorkItem; rank: number; o
       <div className="project-symbol">{item.shortTitle.split(' ').slice(0, 2).map((word) => word[0]).join('')}</div>
       <div><span className="repo-label">{item.repository}</span><h3>{item.shortTitle}</h3><p>{item.summary}</p></div>
       <div className="featured-footer"><span>{item.category}</span><span>Open case <ArrowUpRight size={14} /></span></div>
+    </button>
+  )
+}
+
+function ResultsBoard({ onSelect }: { onSelect: (item: WorkItem) => void }) {
+  const shipped = workItems.filter((item) => item.status === 'shipped')
+  const reviewed = workItems.filter((item) => item.status === 'completed')
+  const completed = [...shipped, ...reviewed]
+  const formalCompleted = completed.filter((item) => item.counted).length
+
+  return (
+    <div className="page page--results">
+      <section className="results-hero">
+        <div>
+          <span className="section-kicker section-kicker--light"><Award size={13} /> Completed outcomes</span>
+          <h1>把做完的结果，<em>全部浮上来。</em></h1>
+          <p>这里不是任务数量列表。每一张卡都回答：解决了什么、经过哪次沟通和重做、证据是什么、最终是否真正成功。</p>
+        </div>
+        <div className="results-score">
+          <div><strong>{completed.length}</strong><span>已完成结果</span></div>
+          <div><strong>{shipped.length}</strong><span>Shipped / Merged</span></div>
+          <div><strong>{reviewed.length}</strong><span>QA / Review 完成</span></div>
+          <small>{formalCompleted} 项正式工作 + {completed.length - formalCompleted} 项自主交付</small>
+        </div>
+      </section>
+
+      <section className="result-summary-row">
+        <div><CheckCircle2 size={19} /><span><strong>生产问题</strong>地图水印当天完成修复、部署和生产验证</span></div>
+        <div><ShieldCheck size={19} /><span><strong>基础设施</strong>Fork CI 不再依赖 IQSS AWS credentials</span></div>
+        <div><GitPullRequest size={19} /><span><strong>质量判断</strong>隐藏 regression、权限边界和配置风险均有证据</span></div>
+      </section>
+
+      <ResultGroup eyebrow="Authored delivery" title={`Merged / Shipped · ${shipped.length}`} items={shipped} onSelect={onSelect} />
+      <ResultGroup eyebrow="Independent quality decisions" title={`QA / Review completed · ${reviewed.length}`} items={reviewed} onSelect={onSelect} />
+    </div>
+  )
+}
+
+function ResultGroup({ eyebrow, title, items, onSelect }: {
+  eyebrow: string
+  title: string
+  items: WorkItem[]
+  onSelect: (item: WorkItem) => void
+}) {
+  return (
+    <section className="result-group">
+      <div className="section-heading">
+        <div><span className="section-kicker">{eyebrow}</span><h2>{title}</h2></div>
+        <span className="result-group-note">点击查看背景、流程、挑战、沟通和重做记录</span>
+      </div>
+      <div className="result-grid">
+        {items.map((item) => <ResultCard item={item} journey={workJourneys[item.id]} onClick={() => onSelect(item)} key={item.id} />)}
+      </div>
+    </section>
+  )
+}
+
+function ResultCard({ item, journey, onClick }: { item: WorkItem; journey: WorkJourney; onClick: () => void }) {
+  return (
+    <button className="result-card" onClick={onClick}>
+      <div className="result-card-top">
+        <span className="result-check"><Check size={15} /></span>
+        <StatusPill status={item.status} label={item.statusLabel} />
+      </div>
+      <span className="repo-label">{item.repository}</span>
+      <h3>{item.shortTitle}</h3>
+      <p>{journey.finalResult}</p>
+      {item.metrics && <div className="result-metrics">{item.metrics.slice(0, 3).map((metric) => <span key={metric.label}><strong>{metric.value}</strong>{metric.label}</span>)}</div>}
+      <div className="result-card-foot"><span>{journey.successLabel}</span><strong>完整过程 <ArrowUpRight size={14} /></strong></div>
     </button>
   )
 }
@@ -452,10 +525,7 @@ function InterviewPlan({ tab, setTab }: { tab: PlanTab; setTab: (tab: PlanTab) =
 }
 
 function WorkDrawer({ item, onClose }: { item: WorkItem; onClose: () => void }) {
-  const sections = [
-    ['Problem / Situation', item.problem],
-    ['Responsibility / Task', item.responsibility],
-  ]
+  const journey = workJourneys[item.id]
   return (
     <div className="drawer-layer" role="dialog" aria-modal="true" aria-label={`${item.shortTitle} details`}>
       <button className="drawer-backdrop" onClick={onClose} aria-label="Close project details" />
@@ -464,17 +534,61 @@ function WorkDrawer({ item, onClose }: { item: WorkItem; onClose: () => void }) 
           <div><StatusPill status={item.status} label={item.statusLabel} /><span className="drawer-date">{item.date}</span></div>
           <button className="icon-button" onClick={onClose} aria-label="Close"><X size={20} /></button>
         </div>
-        <div className="drawer-title"><span className="repo-label">{item.repository} · {item.category}</span><h1>{item.title}</h1><p>{item.summary}</p></div>
+        <div className="drawer-title">
+          <span className="repo-label">{item.repository} · {item.category}</span>
+          <h1>{item.title}</h1>
+          <p>{item.summary}</p>
+        </div>
+        <div className={`success-banner success-banner--${journey.success}`}>
+          <span className="success-banner-icon">{journey.success === 'success' ? <CheckCircle2 size={19} /> : journey.success === 'partial' ? <Clock3 size={19} /> : journey.success === 'paused' ? <PauseCircle size={19} /> : <CircleDashed size={19} />}</span>
+          <div><small>最终是否成功</small><strong>{journey.successLabel}</strong></div>
+        </div>
         {item.metrics && <div className="drawer-metrics">{item.metrics.map((metric) => <div key={metric.label}><strong>{metric.value}</strong><span>{metric.label}</span></div>)}</div>}
         <div className="drawer-content">
-          <div className="origin-card"><span>Origin & ownership</span><p>{item.source}</p><strong>{item.ownership}</strong></div>
-          {sections.map(([title, text]) => <DetailSection title={title} key={title}><p>{text}</p></DetailSection>)}
-          <DetailSection title="Risk / Judgment"><ul>{item.risks.map((risk) => <li key={risk}>{risk}</li>)}</ul></DetailSection>
-          <DetailSection title="Actions"><ol>{item.actions.map((action) => <li key={action}>{action}</li>)}</ol></DetailSection>
-          <DetailSection title="Validation / Evidence"><ul className="evidence-list">{item.validation.map((proof) => <li key={proof}><CheckCircle2 size={16} />{proof}</li>)}</ul></DetailSection>
-          <DetailSection title="Result / Honest boundary"><p className="result-copy">{item.result}</p></DetailSection>
-          <DetailSection title="Interview use"><div className="question-chips">{item.interviewQuestions.map((question) => <span key={question}>{question}</span>)}</div></DetailSection>
-          <DetailSection title="Technologies & capabilities"><div className="skill-row skill-row--large">{item.skills.map((skill) => <span key={skill}>{skill}</span>)}</div></DetailSection>
+          <div className="origin-card"><span>任务来源与责任边界</span><p>{item.source}</p><strong>{item.ownership}</strong></div>
+
+          <DetailSection title="01 · 问题背景">
+            <p>{journey.background}</p>
+          </DetailSection>
+
+          <DetailSection title="02 · 解决问题的完整流程">
+            <ol className="journey-steps">{journey.process.map((step) => <li key={step}>{step}</li>)}</ol>
+          </DetailSection>
+
+          <DetailSection title="03 · 我具体做了什么">
+            <ul>{journey.myWork.map((work) => <li key={work}>{work}</li>)}</ul>
+          </DetailSection>
+
+          <DetailSection title="04 · 使用的技术与能力">
+            <div className="skill-row skill-row--large">{item.skills.map((skill) => <span key={skill}>{skill}</span>)}</div>
+          </DetailSection>
+
+          <DetailSection title="05 · 过程中遇到的挑战">
+            <ul className="challenge-list">{journey.challenges.map((challenge) => <li key={challenge}>{challenge}</li>)}</ul>
+          </DetailSection>
+
+          <DetailSection title="06 · 我如何与 Philip 沟通">
+            <div className="communication-timeline">{journey.communication.map((message, index) => <div key={message}><span>{index + 1}</span><p>{message}</p></div>)}</div>
+          </DetailSection>
+
+          <DetailSection title="07 · 沟通之后如何重做与复测">
+            <ol className="rework-list">{journey.rework.map((step) => <li key={step}>{step}</li>)}</ol>
+          </DetailSection>
+
+          <DetailSection title="08 · 验证证据">
+            <ul className="evidence-list">{item.validation.map((proof) => <li key={proof}><CheckCircle2 size={16} />{proof}</li>)}</ul>
+          </DetailSection>
+
+          <section className={`final-outcome final-outcome--${journey.success}`}>
+            <span>最终完成结果</span>
+            <h2>{journey.successLabel}</h2>
+            <p>{journey.finalResult}</p>
+          </section>
+
+          <DetailSection title="面试中可以回答的问题">
+            <div className="question-chips">{item.interviewQuestions.map((question) => <span key={question}>{question}</span>)}</div>
+          </DetailSection>
+
           <div className="drawer-links">
             {item.links.map((link) => <a href={link.url} target="_blank" rel="noreferrer" key={link.url}><span><GitPullRequest size={16} />{link.label}<small>{link.kind}</small></span><ExternalLink size={15} /></a>)}
           </div>
