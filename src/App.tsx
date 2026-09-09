@@ -545,49 +545,77 @@ function WorkDrawer({ item, onClose }: { item: WorkItem; onClose: () => void }) 
         </div>
         {item.metrics && <div className="drawer-metrics">{item.metrics.map((metric) => <div key={metric.label}><strong>{metric.value}</strong><span>{metric.label}</span></div>)}</div>}
         <div className="drawer-content">
-          <div className="origin-card"><span>任务来源与责任边界</span><p>{item.source}</p><strong>{item.ownership}</strong></div>
+          <div className="framework-route" aria-label="Project narrative framework">
+            {['Problem', 'Impact', 'My responsibility', 'Investigation', 'Decision', 'Implementation', 'Validation', 'Result', 'Limitation', 'Learning'].map((stage, index) => (
+              <div key={stage}><span>{String(index + 1).padStart(2, '0')}</span><strong>{stage}</strong>{index < 9 && <ChevronRight size={12} />}</div>
+            ))}
+          </div>
 
-          <DetailSection title="01 · 问题背景">
-            <p>{journey.background}</p>
-          </DetailSection>
+          <FrameworkSection index="01" title="Problem" subtitle="问题是什么">
+            <p>{item.problem}</p>
+          </FrameworkSection>
 
-          <DetailSection title="02 · 解决问题的完整流程">
+          <FrameworkSection index="02" title="Impact" subtitle="为什么重要">
+            <p>{journey.impact}</p>
+          </FrameworkSection>
+
+          <FrameworkSection index="03" title="My responsibility" subtitle="我的责任边界">
+            <p>{item.responsibility}</p>
+            <div className="framework-context"><span>任务来源</span><p>{item.source}</p></div>
+          </FrameworkSection>
+
+          <FrameworkSection index="04" title="Investigation" subtitle="如何定位问题">
             <ol className="journey-steps">{journey.process.map((step) => <li key={step}>{step}</li>)}</ol>
-          </DetailSection>
+          </FrameworkSection>
 
-          <DetailSection title="03 · 我具体做了什么">
+          <FrameworkSection index="05" title="Decision" subtitle="做了什么选择，为什么">
+            <p>{journey.decision}</p>
+            <div className="framework-subsection">
+              <span>Decision trail · 与 Philip / reviewer 的沟通</span>
+              <div className="communication-timeline">{journey.communication.map((message, index) => <div key={message}><span>{index + 1}</span><p>{message}</p></div>)}</div>
+            </div>
+          </FrameworkSection>
+
+          <FrameworkSection index="06" title="Implementation" subtitle="具体完成了什么">
             <ul>{journey.myWork.map((work) => <li key={work}>{work}</li>)}</ul>
-          </DetailSection>
+            <div className="framework-subsection">
+              <span>Technology & capability</span>
+              <div className="skill-row skill-row--large">{item.skills.map((skill) => <span key={skill}>{skill}</span>)}</div>
+            </div>
+          </FrameworkSection>
 
-          <DetailSection title="04 · 使用的技术与能力">
-            <div className="skill-row skill-row--large">{item.skills.map((skill) => <span key={skill}>{skill}</span>)}</div>
-          </DetailSection>
-
-          <DetailSection title="05 · 过程中遇到的挑战">
-            <ul className="challenge-list">{journey.challenges.map((challenge) => <li key={challenge}>{challenge}</li>)}</ul>
-          </DetailSection>
-
-          <DetailSection title="06 · 我如何与 Philip 沟通">
-            <div className="communication-timeline">{journey.communication.map((message, index) => <div key={message}><span>{index + 1}</span><p>{message}</p></div>)}</div>
-          </DetailSection>
-
-          <DetailSection title="07 · 沟通之后如何重做与复测">
-            <ol className="rework-list">{journey.rework.map((step) => <li key={step}>{step}</li>)}</ol>
-          </DetailSection>
-
-          <DetailSection title="08 · 验证证据">
+          <FrameworkSection index="07" title="Validation" subtitle="如何证明方案有效">
             <ul className="evidence-list">{item.validation.map((proof) => <li key={proof}><CheckCircle2 size={16} />{proof}</li>)}</ul>
-          </DetailSection>
+            <div className="framework-subsection">
+              <span>After feedback · 重做与复测</span>
+              <ol className="rework-list">{journey.rework.map((step) => <li key={step}>{step}</li>)}</ol>
+            </div>
+          </FrameworkSection>
 
-          <section className={`final-outcome final-outcome--${journey.success}`}>
-            <span>最终完成结果</span>
-            <h2>{journey.successLabel}</h2>
-            <p>{journey.finalResult}</p>
-          </section>
+          <FrameworkSection index="08" title="Result" subtitle="最终结果">
+            <section className={`final-outcome final-outcome--${journey.success}`}>
+              <span>Outcome status</span>
+              <h2>{journey.successLabel}</h2>
+              <p>{journey.finalResult}</p>
+            </section>
+          </FrameworkSection>
 
-          <DetailSection title="面试中可以回答的问题">
+          <FrameworkSection index="09" title="Limitation" subtitle="仍未解决的边界">
+            <p>{journey.limitation}</p>
+            <div className="framework-subsection">
+              <span>Constraints encountered</span>
+              <ul className="challenge-list">{journey.challenges.map((challenge) => <li key={challenge}>{challenge}</li>)}</ul>
+            </div>
+          </FrameworkSection>
+
+          <FrameworkSection index="10" title="Learning" subtitle="这次工作改变了什么">
+            <p className="learning-copy">{journey.learning}</p>
+          </FrameworkSection>
+
+          <section className="interview-prompts">
+            <span>Interview follow-up questions</span>
             <div className="question-chips">{item.interviewQuestions.map((question) => <span key={question}>{question}</span>)}</div>
-          </DetailSection>
+          </section>
 
           <div className="drawer-links">
             {item.links.map((link) => <a href={link.url} target="_blank" rel="noreferrer" key={link.url}><span><GitPullRequest size={16} />{link.label}<small>{link.kind}</small></span><ExternalLink size={15} /></a>)}
@@ -598,8 +626,13 @@ function WorkDrawer({ item, onClose }: { item: WorkItem; onClose: () => void }) 
   )
 }
 
-function DetailSection({ title, children }: { title: string; children: React.ReactNode }) {
-  return <section className="detail-section"><h2>{title}</h2>{children}</section>
+function FrameworkSection({ index, title, subtitle, children }: { index: string; title: string; subtitle: string; children: React.ReactNode }) {
+  return (
+    <section className="framework-section">
+      <header><span>{index}</span><div><h2>{title}</h2><small>{subtitle}</small></div></header>
+      <div className="framework-section-body">{children}</div>
+    </section>
+  )
 }
 
 export default App
